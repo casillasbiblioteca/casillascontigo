@@ -1,1068 +1,1099 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Servicios de Proximidad · Casillas de Coria</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root {
-    --verde:#2d6a4f; --verde-claro:#52b788; --verde-bg:#d8f3dc;
-    --amarillo:#f9c74f; --rojo:#c0392b; --rojo-claro:#fadbd8;
-    --gris-oscuro:#1e2022; --gris-medio:#4a4e69; --gris-suave:#9a8c98;
-    --gris-borde:#d0d5dd; --gris-fondo:#f5f7f4; --blanco:#ffffff;
-    --sombra:0 2px 8px rgba(0,0,0,.10); --radio:8px;
-    --fuente:'Segoe UI',system-ui,Arial,sans-serif;
+  :root{
+    --ink:#2B2723;
+    --ink-soft:#6B6259;
+    --paper:#FBF8F3;
+    --card:#FFFFFF;
+    --line:#E6DDCD;
+    --pine:#2F5D50;
+    --pine-dark:#234539;
+    --clay:#C1572B;
+    --clay-dark:#A1471F;
+    --gold:#B98A2E;
+    --ok-bg:#EAF3EC;
+    --ok-text:#2F5D50;
+    --baja-bg:#F5E9E4;
+    --baja-text:#9A4A2C;
+    --radius:10px;
+    --shadow:0 6px 20px -8px rgba(43,39,35,.25);
+    font-size:16px;
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--fuente);background:var(--gris-fondo);color:var(--gris-oscuro);font-size:15px;line-height:1.5}
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  #app, .drawer, .overlay, #toast{
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+  }
+  #app{
+    background:var(--paper);
+    min-height:100%;
+    padding-bottom:24px;
+  }
+  .hidden{display:none !important;}
 
-  /* PANTALLA CARGA */
-  #pantalla-carga{position:fixed;inset:0;background:var(--verde);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--blanco)}
-  #pantalla-carga h2{font-size:1.3rem}
-  #pantalla-carga p{font-size:.9rem;opacity:.8}
-  .spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;padding:18px 24px;background:var(--pine);color:#fff;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:40px;height:40px;border-radius:9px;background:var(--clay);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;letter-spacing:.5px;font-size:14px;flex:none;
+  }
+  .brand-text h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
+  .brand-text p{font-size:12.5px;margin:2px 0 0;color:#CFE0D9;}
+  .topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .save-indicator{font-size:12px;color:#CFE0D9;min-width:64px;text-align:right;}
 
-  /* CABECERA */
-  header{background:var(--verde);color:var(--blanco);padding:14px 24px;display:flex;align-items:center;gap:16px;box-shadow:var(--sombra);position:sticky;top:0;z-index:100}
-  header .logo{width:42px;height:42px;background:var(--blanco);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  header .logo svg{width:26px;height:26px}
-  header .titulo h1{font-size:1.15rem;font-weight:700}
-  header .titulo p{font-size:.78rem;opacity:.85}
-  #estado-sync{margin-left:auto;font-size:.78rem;padding:5px 12px;border-radius:20px;font-weight:600;background:rgba(255,255,255,.15);color:var(--blanco);white-space:nowrap;transition:background .3s}
-  #estado-sync.guardando{background:#f9c74f;color:#333}
-  #estado-sync.error{background:var(--rojo)}
-  #estado-sync.ok{background:var(--verde-claro)}
+  .btn{
+    border:none;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;
+    cursor:pointer;transition:filter .15s, background .15s; white-space:nowrap;
+  }
+  .btn:active{filter:brightness(.92);}
+  .btn-primary{background:var(--clay);color:#fff;}
+  .btn-primary:hover{background:var(--clay-dark);}
+  .btn-primary:disabled{background:#cbb6ab;cursor:not-allowed;}
+  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;}
+  .btn-ghost:hover{background:rgba(255,255,255,.22);}
+  .btn-outline{background:transparent;color:var(--pine);border:1px solid var(--line);}
+  .btn-outline:hover{background:#F1ECE0;}
+  .btn-sm{padding:7px 11px;font-size:12.5px;}
+  .link-btn{background:none;border:none;color:var(--clay);font-size:12.5px;font-weight:600;cursor:pointer;}
+  .icon-btn{background:none;border:none;color:inherit;cursor:pointer;padding:6px;border-radius:6px;display:flex;}
+  .icon-btn:hover{background:rgba(0,0,0,.06);}
 
-  /* NAV */
-  nav{background:var(--blanco);border-bottom:2px solid var(--verde-bg);display:flex;flex-wrap:wrap;gap:2px;padding:8px 16px;position:sticky;top:70px;z-index:99}
-  nav button{background:none;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--gris-medio);transition:background .15s,color .15s}
-  nav button:hover{background:var(--verde-bg);color:var(--verde)}
-  nav button.activo{background:var(--verde);color:var(--blanco)}
+  /* ---------- Toolbar ---------- */
+  .toolbar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:16px 24px;border-bottom:1px solid var(--line);
+  }
+  .search-box{
+    display:flex;align-items:center;gap:8px;background:var(--card);
+    border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+    flex:1 1 260px;max-width:380px;color:var(--ink-soft);
+  }
+  .search-box input{border:none;outline:none;font-size:13.5px;width:100%;background:transparent;color:var(--ink);}
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;flex:2 1 320px;}
+  .chip{
+    border:1px solid var(--line);background:var(--card);border-radius:999px;
+    padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;gap:6px;color:var(--ink-soft);
+  }
+  .chip .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .status-toggle{display:flex;background:#EFE8DA;border-radius:8px;padding:3px;}
+  .status-btn{
+    border:none;background:transparent;padding:6px 12px;font-size:12.5px;font-weight:600;
+    border-radius:6px;cursor:pointer;color:var(--ink-soft);
+  }
+  .status-btn.active{background:#fff;color:var(--ink);box-shadow:var(--shadow);}
 
-  /* MAIN */
-  main{padding:20px 24px;max-width:1300px}
-  .seccion{display:none}
-  .seccion.visible{display:block}
-  h2{font-size:1.2rem;color:var(--verde);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--verde-bg);display:flex;align-items:center;gap:8px}
+  /* ---------- Reports bar ---------- */
+  .reports-bar{
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    gap:14px;padding:12px 24px;background:#F1ECE0;border-bottom:1px solid var(--line);
+  }
+  .reports-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .reports-label{font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-right:2px;}
+  .reports-buttons{display:flex;gap:6px;flex-wrap:wrap;}
+  .report-chip-btn{
+    border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 11px;
+    font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink);display:flex;align-items:center;gap:6px;
+  }
+  .report-chip-btn .dot{width:8px;height:8px;border-radius:50%;}
+  .report-chip-btn:hover{background:#FAF6EC;}
 
-  /* BOTONES */
-  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:var(--radio);cursor:pointer;font-size:.88rem;font-weight:600;transition:opacity .15s,transform .1s}
-  .btn:hover{opacity:.88}.btn:active{transform:scale(.97)}
-  .btn-verde{background:var(--verde);color:var(--blanco)}
-  .btn-rojo{background:var(--rojo);color:var(--blanco)}
-  .btn-amarillo{background:var(--amarillo);color:var(--gris-oscuro)}
-  .btn-gris{background:var(--gris-borde);color:var(--gris-oscuro)}
-  .btn-sm{padding:5px 10px;font-size:.8rem}
-  .barra-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
-  .buscador{display:flex;gap:8px;flex:1;min-width:260px}
-  .buscador input{flex:1;padding:8px 12px;border:1.5px solid var(--gris-borde);border-radius:var(--radio);font-size:.9rem;outline:none;transition:border-color .2s}
-  .buscador input:focus{border-color:var(--verde-claro)}
+  /* ---------- List ---------- */
+  .list-wrap{padding:18px 24px;}
+  .list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  #resultCount{font-size:13px;color:var(--ink-soft);font-weight:600;}
+  .table-scroll{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:auto;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{
+    text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--ink-soft);padding:12px 14px;border-bottom:1px solid var(--line);background:#FAF7F1;
+    position:sticky;top:0;
+  }
+  th.col-check, td.col-check{width:38px;text-align:center;padding-left:14px;}
+  tbody td{padding:12px 14px;border-bottom:1px solid #F0EAE0;vertical-align:middle;}
+  tbody tr:hover{background:#FBF6EC;}
+  tbody tr.selected{background:#FCF1E7;}
+  .p-name{font-weight:700;font-size:13.8px;}
+  .p-sub{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;
+    font-size:11.5px;font-weight:700;
+  }
+  .badge-activo{background:var(--ok-bg);color:var(--ok-text);}
+  .badge-baja{background:var(--baja-bg);color:var(--baja-text);}
+  .service-dots{display:flex;gap:5px;flex-wrap:wrap;}
+  .service-dots .sdot{
+    width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:800;color:#fff;
+  }
+  .row-actions{display:flex;gap:4px;justify-content:flex-end;}
+  .empty-state{padding:48px 0;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
-  /* TABLA */
-  .tabla-wrap{overflow-x:auto;background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra)}
-  table{width:100%;border-collapse:collapse;font-size:.88rem}
-  thead th{background:var(--verde);color:var(--blanco);padding:10px 12px;text-align:left;white-space:nowrap;font-weight:600}
-  tbody tr{border-bottom:1px solid var(--gris-borde)}
-  tbody tr:last-child{border-bottom:none}
-  tbody tr:hover{background:var(--verde-bg)}
-  tbody td{padding:9px 12px;vertical-align:middle}
-  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:700}
-  .badge-activo{background:var(--verde-bg);color:var(--verde)}
-  .badge-baja{background:var(--rojo-claro);color:var(--rojo)}
+  .app-footer{padding:10px 24px;text-align:center;}
+  .app-footer p{font-size:11.5px;color:var(--ink-soft);margin:0;}
 
-  /* MODAL */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
-  .modal-overlay.abierto{display:flex}
-  .modal{background:var(--blanco);border-radius:12px;width:100%;max-width:720px;box-shadow:0 8px 32px rgba(0,0,0,.22);padding:28px;position:relative;margin:auto}
-  .modal h3{color:var(--verde);font-size:1.1rem;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--verde-bg)}
-  .modal .cerrar{position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--gris-suave);line-height:1}
-  .modal .cerrar:hover{color:var(--rojo)}
+  /* ---------- Drawer ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(43,39,35,.4);z-index:40;
+  }
+  .drawer{
+    position:fixed;top:0;right:0;height:100%;width:min(440px,92vw);
+    background:#fff;z-index:41;box-shadow:-12px 0 30px -10px rgba(0,0,0,.3);
+    display:flex;flex-direction:column;
+  }
+  .drawer form{display:flex;flex-direction:column;height:100%;}
+  .drawer-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 20px;border-bottom:1px solid var(--line);
+  }
+  .drawer-head h2{font-size:16px;margin:0;}
+  .drawer-body{padding:18px 20px;overflow-y:auto;flex:1;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
+  .field-full{grid-column:1/-1;}
+  .field input, .field select, .field textarea{
+    border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);background:#FCFAF6;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--pine);outline-offset:1px;}
+  .section-title{
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--pine);margin:18px 0 10px;border-top:1px solid var(--line);padding-top:16px;
+  }
+  .service-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .service-check{
+    display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;
+    padding:10px 11px;cursor:pointer;font-size:13px;font-weight:600;background:#FCFAF6;
+  }
+  .service-check input{width:17px;height:17px;flex:none;}
+  .service-check .sdot{width:10px;height:10px;border-radius:50%;flex:none;}
+  .checkbox-row{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;margin:4px 0 16px;}
+  .checkbox-row input{width:17px;height:17px;}
+  .drawer-foot{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px;border-top:1px solid var(--line);
+  }
+  .drawer-foot-right{display:flex;gap:8px;}
+  #btnDelete{color:var(--clay-dark);}
 
-  /* FORMULARIO */
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .form-grid .full{grid-column:1/-1}
-  .form-group{display:flex;flex-direction:column;gap:4px}
-  .form-group label{font-size:.8rem;font-weight:700;color:var(--gris-medio);text-transform:uppercase;letter-spacing:.4px}
-  .form-group label .req{color:var(--rojo)}
-  .form-group input,.form-group select,.form-group textarea{padding:8px 11px;border:1.5px solid var(--gris-borde);border-radius:6px;font-size:.9rem;font-family:var(--fuente);outline:none;transition:border-color .2s;background:var(--blanco)}
-  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--verde-claro)}
-  .form-group textarea{resize:vertical;min-height:70px}
-  .servicios-check{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
-  .servicios-check label{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:600;cursor:pointer;background:var(--gris-fondo);border:1.5px solid var(--gris-borde);border-radius:6px;padding:6px 12px;text-transform:none;letter-spacing:0;color:var(--gris-oscuro);transition:border-color .2s,background .2s}
-  .servicios-check label:hover{border-color:var(--verde-claro);background:var(--verde-bg)}
-  .servicios-check input[type="checkbox"]{width:15px;height:15px;accent-color:var(--verde)}
-  .servicios-check label:has(input:checked){border-color:var(--verde);background:var(--verde-bg);color:var(--verde)}
-  .seccion-comida{grid-column:1/-1;background:#fff8e1;border:1.5px solid #f9c74f;border-radius:8px;padding:14px;display:none}
-  .seccion-comida.visible{display:block}
-  .seccion-comida h4{color:#7c5e00;font-size:.88rem;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
-  .form-acciones{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--gris-borde)}
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+    z-index:60;box-shadow:var(--shadow);
+  }
 
-  /* TARJETAS SERVICIO */
-  .servicios-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:20px}
-  .servicio-card{background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:18px;cursor:pointer;border:2px solid transparent;transition:border-color .2s,transform .15s}
-  .servicio-card:hover{border-color:var(--verde-claro);transform:translateY(-2px)}
-  .servicio-card.seleccionado{border-color:var(--verde)}
-  .servicio-card .icono{font-size:2rem;margin-bottom:8px}
-  .servicio-card h3{font-size:1rem;color:var(--verde);margin-bottom:4px}
-  .servicio-card .count{font-size:2rem;font-weight:700;color:var(--gris-oscuro)}
-  .servicio-card p{font-size:.8rem;color:var(--gris-suave)}
-
-  .vacio{text-align:center;padding:40px 20px;color:var(--gris-suave);font-size:.95rem}
-  .vacio .icono-grande{font-size:3rem;margin-bottom:8px}
-
-  /* TOAST */
-  #toast{position:fixed;bottom:24px;right:24px;background:var(--verde);color:var(--blanco);padding:12px 20px;border-radius:8px;font-weight:600;font-size:.9rem;box-shadow:var(--sombra);transform:translateY(80px);opacity:0;transition:transform .3s,opacity .3s;z-index:500}
-  #toast.visible{transform:translateY(0);opacity:1}
-  #toast.error{background:var(--rojo)}
-
-  /* CONFIRMACIÓN */
-  #confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
-  #confirm-overlay.abierto{display:flex}
-  #confirm-box{background:var(--blanco);border-radius:12px;padding:28px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.22);text-align:center}
-  #confirm-box h3{font-size:1.1rem;margin-bottom:12px;color:var(--rojo)}
-  #confirm-box p{color:var(--gris-medio);font-size:.92rem;margin-bottom:20px}
-  #confirm-box .btns{display:flex;gap:10px;justify-content:center}
-
-  @media(max-width:640px){.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:1}main{padding:12px}nav{top:62px}}
+  /* ---------- Print ---------- */
+  #printArea{display:none;}
   @media print{
-    header,nav,.barra-acciones,.btn,.modal-overlay,#toast,#confirm-overlay,#pantalla-carga{display:none!important}
-    body{background:white;font-size:11pt}main{padding:0;max-width:100%}
-    .tabla-wrap{box-shadow:none;border:1px solid #999;border-radius:0}
-    table{font-size:9.5pt}
-    thead th{background:#2d6a4f!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    @page{margin:1.5cm}
+    #app, .drawer, .overlay, #toast{display:none !important;}
+    #printArea{display:block !important;}
+    body{background:#fff;}
   }
+  .print-doc{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;}
+  .report-header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid #1a1a1a;padding-bottom:10px;margin-bottom:14px;
+  }
+  .report-header h2{margin:0;font-size:19px;letter-spacing:.3px;}
+  .report-meta{text-align:right;font-size:11px;font-family:Arial,sans-serif;color:#444;}
+  .report-table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px;}
+  .report-table th{
+    text-align:left;background:#EFEFEF;border:1px solid #999;padding:5px 7px;
+    text-transform:uppercase;font-size:9.5px;letter-spacing:.3px;
+  }
+  .report-table td{border:1px solid #ccc;padding:5px 7px;vertical-align:top;}
+  .report-table thead{display:table-header-group;}
+  .report-table tr{page-break-inside:avoid;}
+
+  .ficha{
+    padding:14mm 12mm;page-break-after:always;font-family:Arial,sans-serif;
+  }
+  .ficha:last-child{page-break-after:auto;}
+  .ficha-head{
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:3px solid #2F5D50;padding-bottom:10px;margin-bottom:16px;
+  }
+  .ficha-head h2{margin:0;font-size:20px;color:#2F5D50;}
+  .ficha-head .ficha-exp{font-size:12px;color:#555;}
+  .ficha-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;}
+  .ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin-bottom:16px;font-size:12.5px;}
+  .ficha-grid .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#777;display:block;margin-bottom:2px;}
+  .ficha-section-title{
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    color:#2F5D50;border-top:1px solid #ddd;padding-top:10px;margin:14px 0 8px;
+  }
+  .ficha-services{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12.5px;}
+  .ficha-services span{display:flex;align-items:center;gap:6px;}
+  .ficha-box{font-size:9px;width:13px;height:13px;border:1.4px solid #333;display:inline-flex;align-items:center;justify-content:center;font-weight:800;}
+  .ficha-obs{font-size:12px;border:1px solid #ddd;border-radius:6px;padding:10px;min-height:50px;background:#fafafa;}
+  .ficha-foot{margin-top:18px;font-size:9.5px;color:#999;text-align:right;}
+  @page{size:A4 portrait;margin:14mm;}
 </style>
-</head>
-<body>
-
-<!-- PANTALLA CARGA -->
-<div id="pantalla-carga">
-  <div class="spinner"></div>
-  <h2>Servicios de Proximidad</h2>
-  <p id="msg-carga">Conectando con la base de datos…</p>
-</div>
-
-<!-- CABECERA -->
-<header>
-  <div class="logo">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  </div>
-  <div class="titulo">
-    <h1>Servicios de Proximidad</h1>
-    <p>Casillas de Coria · Gestión de Participantes</p>
-  </div>
-  <div id="estado-sync">⏳ Conectando…</div>
-</header>
-
-<!-- NAV -->
-<nav id="nav">
-  <button class="activo" onclick="mostrarSeccion('participantes')">👥 Participantes</button>
-  <button onclick="mostrarSeccion('servicios')">🗂 Por Servicio</button>
-  <button onclick="mostrarSeccion('exportar')">💾 Exportar / Importar</button>
-</nav>
-
-<main>
-
-  <!-- PARTICIPANTES -->
-  <section id="sec-participantes" class="seccion visible">
-    <h2>👥 Gestión de Participantes</h2>
-    <div class="barra-acciones">
-      <button class="btn btn-verde" onclick="abrirModalParticipante()">＋ Añadir participante</button>
-      <button class="btn btn-gris" onclick="imprimirListadoGeneral()">🖨 Imprimir listado</button>
-      <button class="btn btn-gris" onclick="exportarExcelGeneral()">📊 Exportar a Excel</button>
-      <div class="buscador">
-        <input type="text" id="buscador-input" placeholder="Buscar por nombre, apellidos, DNI o referencia…" oninput="filtrarParticipantes()">
+<div id="app">
+  <!-- ===================== TOPBAR ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">CC</span>
+      <div class="brand-text">
+        <h1>Servicios de Proximidad</h1>
+        <p>Casillas de Coria · Gestión de participantes</p>
       </div>
     </div>
-    <div class="tabla-wrap">
-      <table>
+    <div class="topbar-actions">
+      <span id="saveIndicator" class="save-indicator" aria-live="polite"></span>
+      <button class="btn btn-ghost" id="btnImportJson" type="button">Importar JSON</button>
+      <button class="btn btn-ghost" id="btnExportJson" type="button">Exportar JSON</button>
+      <button class="btn btn-ghost" id="btnImport" type="button">Importar Excel</button>
+      <button class="btn btn-ghost" id="btnExport" type="button">Exportar Excel</button>
+      <button class="btn btn-primary" id="btnNew" type="button">+ Nuevo participante</button>
+    </div>
+  </header>
+
+  <!-- ===================== TOOLBAR ===================== -->
+  <section class="toolbar">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar por nombre, apellidos, expediente o DNI…">
+    </div>
+
+    <div class="chip-row" id="serviceChips"><!-- injected by JS --></div>
+
+    <div class="status-toggle" id="statusToggle">
+      <button class="status-btn active" data-status="todos" type="button">Todos</button>
+      <button class="status-btn" data-status="Activo" type="button">Activos</button>
+      <button class="status-btn" data-status="Baja" type="button">Bajas</button>
+    </div>
+  </section>
+
+  <!-- ===================== REPORTS BAR ===================== -->
+  <section class="reports-bar">
+    <div class="reports-group">
+      <span class="reports-label">Listado de trabajo:</span>
+      <div class="reports-buttons" id="reportButtons"><!-- injected --></div>
+      <button class="btn btn-outline btn-sm" id="btnPrintAll" type="button">Listado general</button>
+    </div>
+    <div class="reports-group">
+      <span class="reports-label">Fichas individuales:</span>
+      <button class="btn btn-outline btn-sm" id="btnSelectAllVisible" type="button">Seleccionar visibles</button>
+      <button class="btn btn-primary btn-sm" id="btnPrintFichas" type="button" disabled>Imprimir fichas (0)</button>
+    </div>
+  </section>
+
+  <!-- ===================== LIST ===================== -->
+  <section class="list-wrap">
+    <div class="list-head">
+      <span id="resultCount">0 participantes</span>
+      <button class="link-btn hidden" id="btnClearSelection" type="button">Quitar selección</button>
+    </div>
+    <div class="table-scroll">
+      <table id="participantsTable">
         <thead>
           <tr>
-            <th>Nº Exp.</th><th>Nombre</th><th>Apellidos</th><th>DNI</th>
-            <th>Teléfono</th><th>Servicios</th><th>Estado</th><th>Acciones</th>
+            <th class="col-check"><input type="checkbox" id="checkAllVisible" title="Seleccionar todos los visibles"></th>
+            <th>Participante</th>
+            <th>Contacto</th>
+            <th>Estado</th>
+            <th>Servicios</th>
+            <th></th>
           </tr>
         </thead>
-        <tbody id="tbody-participantes"></tbody>
+        <tbody id="tableBody"></tbody>
       </table>
-    </div>
-  </section>
-
-  <!-- SERVICIOS -->
-  <section id="sec-servicios" class="seccion">
-    <h2>🗂 Vista por Servicio</h2>
-    <div class="servicios-grid" id="servicios-grid"></div>
-    <div id="servicio-detalle" style="display:none">
-      <div class="barra-acciones">
-        <h2 id="servicio-titulo" style="border:none;margin:0;padding:0;flex:1"></h2>
-        <button class="btn btn-gris" onclick="exportarExcelServicio()">📊 Excel</button>
-        <button class="btn btn-gris" onclick="imprimirServicio()">🖨 Imprimir</button>
-      </div>
-      <div class="tabla-wrap">
-        <table><thead id="thead-servicio"></thead><tbody id="tbody-servicio"></tbody></table>
+      <div id="emptyState" class="empty-state hidden">
+        <p>No hay participantes que coincidan con la búsqueda.</p>
       </div>
     </div>
   </section>
 
-  <!-- EXPORTAR / IMPORTAR -->
-  <section id="sec-exportar" class="seccion">
-    <h2>💾 Exportar e Importar datos</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;max-width:1000px">
+  <footer class="app-footer">
+    <p>Los datos se guardan automáticamente y se comparten con todo el equipo que use esta herramienta.</p>
+  </footer>
+</div>
 
-      <div style="background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px">
-        <h3 style="color:var(--verde);margin-bottom:8px;font-size:1rem">📊 Exportar a Excel</h3>
-        <p style="font-size:.88rem;color:var(--gris-medio);margin-bottom:16px">Descarga el listado completo o por servicio en formato .xlsx, listo para abrir con Excel.</p>
-        <button class="btn btn-verde" onclick="exportarExcelGeneral()" style="margin-bottom:10px;width:100%">⬇ Listado general (todas las hojas)</button>
-        <p style="font-size:.78rem;color:var(--gris-suave);margin-bottom:8px">Solo por servicio:</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          <button class="btn btn-gris btn-sm" onclick="exportarExcelServicioDirecto('ayuda')">🏠 Ayuda</button>
-          <button class="btn btn-gris btn-sm" onclick="exportarExcelServicioDirecto('terapia')">🧠 Terapia</button>
-          <button class="btn btn-gris btn-sm" onclick="exportarExcelServicioDirecto('podologia')">🦶 Podología</button>
-          <button class="btn btn-gris btn-sm" onclick="exportarExcelServicioDirecto('comida')">🍽 Comida</button>
-          <button class="btn btn-gris btn-sm" onclick="exportarExcelServicioDirecto('pilates')">🤸 Pilates</button>
-        </div>
-      </div>
+<!-- ===================== DRAWER (FORM) ===================== -->
+<div id="overlay" class="overlay hidden"></div>
+<aside id="formPanel" class="drawer hidden" aria-hidden="true">
+  <form id="participantForm">
+    <div class="drawer-head">
+      <h2 id="drawerTitle">Nuevo participante</h2>
+      <button type="button" class="icon-btn" id="btnCloseDrawer" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
 
-      <div style="background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px">
-        <h3 style="color:var(--verde);margin-bottom:8px;font-size:1rem">📤 Copia de seguridad (JSON)</h3>
-        <p style="font-size:.88rem;color:var(--gris-medio);margin-bottom:16px">Descarga todos los datos de Firebase como copia de seguridad. Úsala para restaurar si fuera necesario.</p>
-        <button class="btn btn-verde" onclick="exportarDatos()" style="margin-bottom:10px;width:100%">⬇ Descargar copia JSON</button>
-      </div>
+    <div class="drawer-body">
+      <input type="hidden" id="f-id">
 
-      <div style="background:var(--blanco);border-radius:var(--radio);box-shadow:var(--sombra);padding:24px">
-        <h3 style="color:var(--verde);margin-bottom:8px;font-size:1rem">📥 Restaurar desde copia JSON</h3>
-        <p style="font-size:.88rem;color:var(--gris-medio);margin-bottom:16px">Carga una copia JSON para restaurar los datos en Firebase. <strong>Sustituirá</strong> los datos actuales.</p>
-        <label class="btn btn-amarillo" style="cursor:pointer;width:100%;justify-content:center">
-          ⬆ Seleccionar archivo JSON
-          <input type="file" accept=".json" style="display:none" onchange="importarDatos(event)">
+      <div class="field-grid">
+        <label class="field">
+          <span>Nº Expediente</span>
+          <input type="text" id="f-expediente">
+        </label>
+        <label class="field">
+          <span>Estado</span>
+          <select id="f-estado">
+            <option value="Activo">Activo</option>
+            <option value="Baja">Baja</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Nombre *</span>
+          <input type="text" id="f-nombre" required>
+        </label>
+        <label class="field">
+          <span>Apellidos *</span>
+          <input type="text" id="f-apellidos" required>
+        </label>
+        <label class="field">
+          <span>DNI</span>
+          <input type="text" id="f-dni">
+        </label>
+        <label class="field">
+          <span>Teléfono</span>
+          <input type="text" id="f-telefono">
+        </label>
+        <label class="field">
+          <span>Fecha de nacimiento</span>
+          <input type="date" id="f-fecha">
+        </label>
+        <label class="field">
+          <span>Grado de dependencia</span>
+          <select id="f-grado">
+            <option value="">Sin reconocer</option>
+            <option value="Grado I">Grado I</option>
+            <option value="Grado II">Grado II</option>
+            <option value="Grado III">Grado III</option>
+          </select>
         </label>
       </div>
 
+      <label class="field field-full">
+        <span>Dirección</span>
+        <input type="text" id="f-direccion">
+      </label>
+
+      <div class="section-title">Servicios asignados</div>
+      <div class="service-grid" id="serviceCheckGrid"><!-- injected --></div>
+
+      <div class="section-title">Información alimentaria</div>
+      <div class="field-grid">
+        <label class="field">
+          <span>Alergias alimentarias</span>
+          <input type="text" id="f-alergias" placeholder="Ej. frutos secos">
+        </label>
+        <label class="field">
+          <span>Intolerancias alimentarias</span>
+          <input type="text" id="f-intolerancias" placeholder="Ej. lactosa, gluten">
+        </label>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-triturada">
+        <span>Necesita comida triturada</span>
+      </label>
+
+      <label class="field field-full">
+        <span>Observaciones</span>
+        <textarea id="f-observaciones" rows="3"></textarea>
+      </label>
     </div>
 
-    <div style="margin-top:24px;background:#e8f4fd;border:1.5px solid #90cdf4;border-radius:var(--radio);padding:20px;max-width:700px">
-      <h3 style="color:#2b6cb0;margin-bottom:10px;font-size:1rem">☁ Base de datos en la nube activa</h3>
-      <p style="font-size:.88rem;color:#2d3748;line-height:1.7">
-        Los datos se guardan automáticamente en <strong>Firebase</strong> cada vez que añades, editas o eliminas un participante.
-        Cualquier ordenador que abra esta página verá siempre los datos actualizados en tiempo real.
-        <br>El botón JSON es solo para copias de seguridad adicionales.
-      </p>
-    </div>
-  </section>
-
-</main>
-
-<!-- MODAL PARTICIPANTE -->
-<div class="modal-overlay" id="modal-participante">
-  <div class="modal">
-    <button class="cerrar" onclick="cerrarModal('modal-participante')">✕</button>
-    <h3 id="modal-titulo">Nuevo participante</h3>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Nº Expediente <span class="req">*</span></label>
-        <input type="text" id="f-expediente" placeholder="Autogenerado o manual">
-      </div>
-      <div class="form-group">
-        <label>Estado <span class="req">*</span></label>
-        <select id="f-estado">
-          <option value="Activo">Activo</option>
-          <option value="Baja">Baja</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Nombre <span class="req">*</span></label>
-        <input type="text" id="f-nombre" placeholder="Nombre">
-      </div>
-      <div class="form-group">
-        <label>Apellidos <span class="req">*</span></label>
-        <input type="text" id="f-apellidos" placeholder="Apellidos">
-      </div>
-      <div class="form-group">
-        <label>DNI <span class="req">*</span></label>
-        <input type="text" id="f-dni" placeholder="12345678A">
-      </div>
-      <div class="form-group">
-        <label>Teléfono <span class="req">*</span></label>
-        <input type="tel" id="f-telefono" placeholder="600 000 000">
-      </div>
-      <div class="form-group">
-        <label>Fecha de nacimiento <span class="req">*</span></label>
-        <input type="date" id="f-nacimiento" onchange="calcularEdad()">
-        <span id="edad-display" style="font-size:.82rem;color:var(--verde);font-weight:700;margin-top:3px;display:block;min-height:18px"></span>
-      </div>
-      <div class="form-group">
-        <label>Grado de dependencia <span class="req">*</span></label>
-        <select id="f-dependencia">
-          <option value="">— Seleccionar —</option>
-          <option>Sin reconocimiento</option>
-          <option>Grado I – Dependencia moderada</option>
-          <option>Grado II – Dependencia severa</option>
-          <option>Grado III – Gran dependencia</option>
-        </select>
-      </div>
-      <div class="form-group full">
-        <label>Dirección <span class="req">*</span></label>
-        <input type="text" id="f-direccion" placeholder="Calle, número, localidad">
-      </div>
-      <div class="form-group">
-        <label>Alias / Referencia familiar</label>
-        <input type="text" id="f-alias" placeholder="Opcional">
-      </div>
-      <div class="form-group full">
-        <label>Servicios asignados</label>
-        <div class="servicios-check">
-          <label><input type="checkbox" id="s-ayuda"     onchange="toggleComida()"> Ayuda a domicilio</label>
-          <label><input type="checkbox" id="s-terapia"   onchange="toggleExtras()"> Terapia ocupacional</label>
-          <label><input type="checkbox" id="s-podologia" onchange="toggleExtras()"> Podología</label>
-          <label><input type="checkbox" id="s-comida"    onchange="toggleComida()"> Comida a domicilio</label>
-          <label><input type="checkbox" id="s-pilates"   onchange="toggleComida()"> Pilates</label>
-        </div>
-      </div>
-
-      <!-- Bloque terapia domicilio -->
-      <div class="seccion-comida" id="bloque-terapia" style="background:#f0f4ff;border-color:#90aee8">
-        <h4 style="color:#2b4a8c">🧠 Terapia ocupacional – modalidad</h4>
-        <div class="form-group">
-          <label>¿A domicilio?</label>
-          <select id="f-terapia-domicilio">
-            <option value="No">No – acude al centro</option>
-            <option value="Sí">Sí – a domicilio</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Bloque podología domicilio -->
-      <div class="seccion-comida" id="bloque-podologia" style="background:#f5f0ff;border-color:#b39ddb">
-        <h4 style="color:#4a2b8c">🦶 Podología – modalidad</h4>
-        <div class="form-group">
-          <label>¿A domicilio?</label>
-          <select id="f-podologia-domicilio">
-            <option value="No">No – acude al centro</option>
-            <option value="Sí">Sí – a domicilio</option>
-          </select>
-        </div>
-      </div>
-      <div class="seccion-comida" id="bloque-comida">
-        <h4>🍽 Datos de comida a domicilio</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="form-group">
-            <label>Alergias alimentarias</label>
-            <input type="text" id="f-alergias" placeholder="Ej: gluten, marisco…">
-          </div>
-          <div class="form-group">
-            <label>Intolerancias alimentarias</label>
-            <input type="text" id="f-intolerancias" placeholder="Ej: lactosa…">
-          </div>
-          <div class="form-group">
-            <label>Comida triturada</label>
-            <select id="f-triturada">
-              <option value="No">No</option>
-              <option value="Sí">Sí</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="form-group full">
-        <label>Observaciones</label>
-        <textarea id="f-observaciones" placeholder="Notas adicionales…"></textarea>
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-ghost" id="btnDelete">Eliminar</button>
+      <div class="drawer-foot-right">
+        <button type="button" class="btn btn-outline" id="btnCancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
       </div>
     </div>
-    <div class="form-acciones">
-      <button class="btn btn-gris" onclick="cerrarModal('modal-participante')">Cancelar</button>
-      <button class="btn btn-verde" onclick="guardarParticipante()">💾 Guardar</button>
-    </div>
-  </div>
-</div>
+  </form>
+</aside>
 
-<!-- MODAL VER PARTICIPANTE -->
-<div class="modal-overlay" id="modal-ver">
-  <div class="modal">
-    <button class="cerrar" onclick="cerrarModal('modal-ver')">✕</button>
-    <h3 id="ver-titulo">Ficha de participante</h3>
-    <div id="ver-contenido"></div>
-    <div class="form-acciones">
-      <button class="btn btn-gris" onclick="cerrarModal('modal-ver')">Cerrar</button>
-      <button class="btn btn-gris" id="btn-imprimir-ficha">🖨 Imprimir ficha</button>
-      <button class="btn btn-amarillo" id="btn-editar-desde-ver">✏ Editar</button>
-    </div>
-  </div>
-</div>
+<!-- ===================== PRINT AREA ===================== -->
+<div id="printArea"></div>
 
-<!-- CONFIRMACIÓN -->
-<div id="confirm-overlay">
-  <div id="confirm-box">
-    <h3>⚠ Confirmar acción</h3>
-    <p id="confirm-msg"></p>
-    <div class="btns">
-      <button class="btn btn-gris" onclick="cerrarConfirm()">Cancelar</button>
-      <button class="btn btn-rojo" id="btn-confirm-ok">Confirmar</button>
-    </div>
-  </div>
-</div>
+<!-- ===================== TOAST ===================== -->
+<div id="toast" class="toast hidden"></div>
 
-<!-- TOAST -->
-<div id="toast"></div>
+<!-- hidden file input for import -->
+<input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
+<input type="file" id="fileInputJson" accept=".json" class="hidden">
 
-<!-- FIREBASE SDK -->
-<script type="module">
-import { initializeApp }                      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, remove, onValue, push }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<style id="pageOrientationStyle"></style>
 
-/* ─── CONFIG FIREBASE ──────────────────────────────────────── */
-const firebaseConfig = {
-  apiKey:            "AIzaSyCLV-5nXG3G-1qP2jrOZlxbZpZszD5_wPs",
-  authDomain:        "casillascontigo.firebaseapp.com",
-  databaseURL:       "https://casillascontigo-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId:         "casillascontigo",
-  storageBucket:     "casillascontigo.firebasestorage.app",
-  messagingSenderId: "451360551775",
-  appId:             "1:451360551775:web:3fa72a2355522fc90b7cea"
-};
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  "use strict";
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
-const pRef = ref(db, 'participantes');
+  // ===================================================================
+  // CONFIGURACIÓN DE SERVICIOS
+  // ===================================================================
+  var SERVICES = [
+    { key: "ayuda",    label: "Ayuda a domicilio",    short: "AD", color: "#2F5D50" },
+    { key: "terapia",  label: "Terapia ocupacional",  short: "TO", color: "#B98A2E" },
+    { key: "podologia",label: "Podología",            short: "PO", color: "#6A3D9A" },
+    { key: "comida",   label: "Comida a domicilio",   short: "CD", color: "#C1572B" },
+    { key: "pilates",  label: "Pilates",               short: "PI", color: "#2E7D9C" }
+  ];
 
-/* ─── ESTADO GLOBAL ────────────────────────────────────────── */
-const SERVICIOS_LISTA = [
-  { id:'ayuda',     label:'Ayuda a domicilio',  icono:'🏠' },
-  { id:'terapia',   label:'Terapia ocupacional', icono:'🧠' },
-  { id:'podologia', label:'Podología',           icono:'🦶' },
-  { id:'comida',    label:'Comida a domicilio',  icono:'🍽' },
-  { id:'pilates',   label:'Pilates',             icono:'🤸' },
-];
+  var STORAGE_KEY = "participantes";
+  var SHARED = true;
 
-let participantes   = [];
-let editandoId      = null;
-let confirmCallback = null;
-let servicioActual  = null;
-let toastTimer;
-
-/* ─── SYNC FIREBASE (escucha en tiempo real) ───────────────── */
-setSyncEstado('conectando');
-onValue(pRef, (snapshot) => {
-  const data = snapshot.val();
-  participantes = data ? Object.values(data) : [];
-  filtrarParticipantes();
-  if (document.getElementById('sec-servicios').classList.contains('visible')) {
-    renderizarTarjetasServicios();
-  }
-  // Ocultar pantalla de carga la primera vez
-  const pc = document.getElementById('pantalla-carga');
-  if (pc.style.display !== 'none') {
-    pc.style.display = 'none';
-  }
-  setSyncEstado('ok');
-}, (error) => {
-  document.getElementById('msg-carga').textContent = '❌ Error de conexión. Comprueba internet.';
-  setSyncEstado('error');
-});
-
-function setSyncEstado(estado) {
-  const el = document.getElementById('estado-sync');
-  const estados = {
-    conectando: { txt:'⏳ Conectando…',   cls:'' },
-    ok:         { txt:'☁ Sincronizado',   cls:'ok' },
-    guardando:  { txt:'💾 Guardando…',    cls:'guardando' },
-    error:      { txt:'❌ Sin conexión',   cls:'error' },
+  var state = {
+    participants: [],
+    search: "",
+    serviceFilter: new Set(),
+    statusFilter: "todos",
+    selected: new Set(),
+    editingId: null
   };
-  const e = estados[estado] || estados.ok;
-  el.textContent = e.txt;
-  el.className   = e.cls;
-}
 
-/* ─── NAVEGACIÓN ───────────────────────────────────────────── */
-function mostrarSeccion(id) {
-  document.querySelectorAll('.seccion').forEach(s => s.classList.remove('visible'));
-  document.querySelectorAll('#nav button').forEach(b => b.classList.remove('activo'));
-  document.getElementById('sec-' + id).classList.add('visible');
-  const idx = {participantes:0, servicios:1, exportar:2}[id];
-  document.querySelectorAll('#nav button')[idx].classList.add('activo');
-  if (id === 'servicios') renderizarTarjetasServicios();
-}
-window.mostrarSeccion = mostrarSeccion;
-
-/* ─── RENDER TABLA ─────────────────────────────────────────── */
-function renderizarTabla(lista) {
-  const tbody = document.getElementById('tbody-participantes');
-  if (!lista.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="vacio"><div class="icono-grande">👥</div>No hay participantes registrados.</div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = lista.map(p => {
-    const badges = (p.servicios||[]).map(s =>
-      `<span style="background:var(--verde-bg);color:var(--verde);border-radius:4px;padding:1px 6px;font-size:.75rem;white-space:nowrap">${s}</span>`
-    ).join(' ');
-    const estado = p.estado === 'Activo'
-      ? `<span class="badge badge-activo">Activo</span>`
-      : `<span class="badge badge-baja">Baja</span>`;
-    return `<tr>
-      <td><strong>${esc(p.expediente)}</strong></td>
-      <td>${esc(p.nombre)}</td><td>${esc(p.apellidos)}</td>
-      <td>${esc(p.dni)}</td><td>${esc(p.telefono)}</td>
-      <td style="max-width:200px">${badges||'<span style="color:var(--gris-suave);font-size:.8rem">Ninguno</span>'}</td>
-      <td>${estado}</td>
-      <td>
-        <button class="btn btn-gris btn-sm" onclick="verParticipante('${p.id}')">👁 Ver</button>
-        <button class="btn btn-amarillo btn-sm" onclick="abrirModalParticipante('${p.id}')">✏</button>
-        <button class="btn btn-rojo btn-sm" onclick="pedirEliminar('${p.id}')">🗑</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function filtrarParticipantes() {
-  const q = document.getElementById('buscador-input').value.toLowerCase().trim();
-  const lista = q
-    ? participantes.filter(p =>
-        (p.nombre||'').toLowerCase().includes(q) ||
-        (p.apellidos||'').toLowerCase().includes(q) ||
-        (p.dni||'').toLowerCase().includes(q) ||
-        (p.alias||'').toLowerCase().includes(q))
-    : participantes;
-  renderizarTabla(lista);
-}
-window.filtrarParticipantes = filtrarParticipantes;
-
-/* ─── MODAL PARTICIPANTE ───────────────────────────────────── */
-function abrirModalParticipante(id) {
-  editandoId = id || null;
-  limpiarFormulario();
-  if (id) {
-    const p = participantes.find(x => x.id === id);
-    if (!p) return;
-    document.getElementById('modal-titulo').textContent = 'Editar participante';
-    document.getElementById('f-expediente').value    = p.expediente||'';
-    document.getElementById('f-nombre').value        = p.nombre||'';
-    document.getElementById('f-apellidos').value     = p.apellidos||'';
-    document.getElementById('f-dni').value           = p.dni||'';
-    document.getElementById('f-telefono').value      = p.telefono||'';
-    document.getElementById('f-nacimiento').value    = p.nacimiento||'';
-    document.getElementById('f-direccion').value     = p.direccion||'';
-    document.getElementById('f-dependencia').value   = p.dependencia||'';
-    document.getElementById('f-estado').value        = p.estado||'Activo';
-    document.getElementById('f-alias').value         = p.alias||'';
-    document.getElementById('f-observaciones').value = p.observaciones||'';
-    SERVICIOS_LISTA.forEach(s => {
-      document.getElementById('s-'+s.id).checked = (p.servicios||[]).includes(s.label);
+  // ===================================================================
+  // UTILIDADES
+  // ===================================================================
+  function $(id){ return document.getElementById(id); }
+  function uid(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+  function escapeHtml(str){
+    if(str === null || str === undefined) return "";
+    return String(str).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
     });
-    document.getElementById('f-alergias').value      = p.alergias||'';
-    document.getElementById('f-intolerancias').value = p.intolerancias||'';
-    document.getElementById('f-triturada').value     = p.triturada||'No';
-    document.getElementById('f-terapia-domicilio').value  = p.terapiaDomicilio||'No';
-    document.getElementById('f-podologia-domicilio').value = p.podologiaDomicilio||'No';
-    calcularEdad();
-  } else {
-    document.getElementById('modal-titulo').textContent = 'Nuevo participante';
-    document.getElementById('f-expediente').value = generarExpediente();
   }
-  toggleComida();
-  toggleExtras();
-  abrirModal('modal-participante');
-}
-window.abrirModalParticipante = abrirModalParticipante;
-
-function limpiarFormulario() {
-  ['f-expediente','f-nombre','f-apellidos','f-dni','f-telefono',
-   'f-nacimiento','f-direccion','f-alias','f-observaciones','f-alergias','f-intolerancias']
-    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('f-dependencia').value = '';
-  document.getElementById('f-estado').value = 'Activo';
-  document.getElementById('f-triturada').value = 'No';
-  document.getElementById('f-terapia-domicilio').value = 'No';
-  document.getElementById('f-podologia-domicilio').value = 'No';
-  document.getElementById('edad-display').textContent = '';
-  SERVICIOS_LISTA.forEach(s => { document.getElementById('s-'+s.id).checked = false; });
-}
-
-function toggleComida() {
-  document.getElementById('bloque-comida').classList.toggle('visible',
-    document.getElementById('s-comida').checked);
-}
-window.toggleComida = toggleComida;
-
-function toggleExtras() {
-  document.getElementById('bloque-terapia').classList.toggle('visible',
-    document.getElementById('s-terapia').checked);
-  document.getElementById('bloque-podologia').classList.toggle('visible',
-    document.getElementById('s-podologia').checked);
-}
-window.toggleExtras = toggleExtras;
-
-function calcularEdad() {
-  const val = document.getElementById('f-nacimiento').value;
-  const el  = document.getElementById('edad-display');
-  el.textContent = val ? calcularEdadDesde(val) + ' años' : '';
-}
-window.calcularEdad = calcularEdad;
-
-function calcularEdadDesde(iso) {
-  const hoy = new Date(), nac = new Date(iso);
-  let edad = hoy.getFullYear() - nac.getFullYear();
-  const m = hoy.getMonth() - nac.getMonth();
-  if (m < 0 || (m===0 && hoy.getDate() < nac.getDate())) edad--;
-  return edad;
-}
-
-function generarExpediente() {
-  const max = participantes.reduce((m,p) => {
-    const n = parseInt(p.expediente,10); return isNaN(n)?m:Math.max(m,n);
-  }, 0);
-  return String(max+1).padStart(4,'0');
-}
-
-async function guardarParticipante() {
-  const expediente    = document.getElementById('f-expediente').value.trim();
-  const nombre        = document.getElementById('f-nombre').value.trim();
-  const apellidos     = document.getElementById('f-apellidos').value.trim();
-  const dni           = document.getElementById('f-dni').value.trim();
-  const telefono      = document.getElementById('f-telefono').value.trim();
-  const nacimiento    = document.getElementById('f-nacimiento').value;
-  const direccion     = document.getElementById('f-direccion').value.trim();
-  const dependencia   = document.getElementById('f-dependencia').value;
-  const estado        = document.getElementById('f-estado').value;
-  const alias         = document.getElementById('f-alias').value.trim();
-  const observaciones = document.getElementById('f-observaciones').value.trim();
-
-  if (!expediente||!nombre||!apellidos||!dni||!telefono||!nacimiento||!direccion||!dependencia) {
-    toast('⚠ Completa todos los campos obligatorios.', true); return;
+  function formatDate(d){
+    if(!d) return "";
+    var parts = d.split("-");
+    if(parts.length === 3) return parts[2] + "/" + parts[1] + "/" + parts[0];
+    return d;
   }
-  if (participantes.find(p => p.expediente===expediente && p.id!==editandoId)) {
-    toast('⚠ Ya existe un expediente con ese número.', true); return;
+  function todayLong(){
+    var now = new Date();
+    return now.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' }) +
+           " " + now.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+  }
+  function showToast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.classList.add('hidden'); }, 2400);
+  }
+  function setSaveIndicator(text){
+    $('saveIndicator').textContent = text;
+    if(text){ setTimeout(function(){ $('saveIndicator').textContent = ""; }, 1600); }
   }
 
-  const servicios = SERVICIOS_LISTA
-    .filter(s => document.getElementById('s-'+s.id).checked)
-    .map(s => s.label);
-  const conComida = servicios.includes('Comida a domicilio');
-
-  const conTerapia   = servicios.includes('Terapia ocupacional');
-  const conPodologia = servicios.includes('Podología');
-
-  const datos = {
-    expediente, nombre, apellidos, dni, telefono,
-    nacimiento, direccion, dependencia, estado, alias, observaciones, servicios,
-    alergias:           conComida    ? document.getElementById('f-alergias').value.trim() : '',
-    intolerancias:      conComida    ? document.getElementById('f-intolerancias').value.trim() : '',
-    triturada:          conComida    ? document.getElementById('f-triturada').value : 'No',
-    terapiaDomicilio:   conTerapia   ? document.getElementById('f-terapia-domicilio').value : 'No',
-    podologiaDomicilio: conPodologia ? document.getElementById('f-podologia-domicilio').value : 'No',
-  };
-
-  setSyncEstado('guardando');
-  try {
-    if (editandoId) {
-      datos.id = editandoId;
-      const p = participantes.find(x=>x.id===editandoId);
-      datos.fechaAlta = p?.fechaAlta || new Date().toISOString().split('T')[0];
-      await set(ref(db,'participantes/'+editandoId), datos);
-      toast('✅ Participante actualizado.');
-    } else {
-      const newRef = push(pRef);
-      datos.id = newRef.key;
-      datos.fechaAlta = new Date().toISOString().split('T')[0];
-      await set(newRef, datos);
-      toast('✅ Participante añadido.');
+  // ===================================================================
+  // PERSISTENCIA (window.storage)
+  // ===================================================================
+  async function loadParticipants(){
+    try{
+      var res = await window.storage.get(STORAGE_KEY, SHARED);
+      if(res && res.value){ return JSON.parse(res.value); }
+      return [];
+    }catch(e){
+      return [];
     }
-    cerrarModal('modal-participante');
-  } catch(err) {
-    setSyncEstado('error');
-    toast('❌ Error al guardar. Comprueba la conexión.', true);
   }
-}
-window.guardarParticipante = guardarParticipante;
 
-/* ─── VER PARTICIPANTE ─────────────────────────────────────── */
-function verParticipante(id) {
-  const p = participantes.find(x=>x.id===id);
-  if (!p) return;
-  const fila = (label,val) => `<tr>
-    <td style="font-weight:700;color:var(--gris-medio);font-size:.8rem;padding:6px 8px;white-space:nowrap;background:var(--gris-fondo);width:38%">${label}</td>
-    <td style="padding:6px 8px">${val||'—'}</td></tr>`;
-  const badges = (p.servicios||[]).map(s =>
-    `<span style="background:var(--verde-bg);color:var(--verde);border-radius:4px;padding:2px 8px;font-size:.82rem;display:inline-block;margin:2px">${s}</span>`
-  ).join('');
-  let comidaHtml='';
-  if ((p.servicios||[]).includes('Comida a domicilio')) {
-    comidaHtml=`
-      <tr><td colspan="2" style="padding:8px;background:#fff8e1;font-weight:700;color:#7c5e00;font-size:.8rem">🍽 DATOS COMIDA A DOMICILIO</td></tr>
-      ${fila('Alergias',p.alergias||'—')}${fila('Intolerancias',p.intolerancias||'—')}${fila('Comida triturada',p.triturada)}`;
-  }
-  let terapiaHtml='';
-  if ((p.servicios||[]).includes('Terapia ocupacional')) {
-    terapiaHtml=`
-      <tr><td colspan="2" style="padding:8px;background:#f0f4ff;font-weight:700;color:#2b4a8c;font-size:.8rem">🧠 TERAPIA OCUPACIONAL</td></tr>
-      ${fila('A domicilio', p.terapiaDomicilio||'No')}`;
-  }
-  let podologiaHtml='';
-  if ((p.servicios||[]).includes('Podología')) {
-    podologiaHtml=`
-      <tr><td colspan="2" style="padding:8px;background:#f5f0ff;font-weight:700;color:#4a2b8c;font-size:.8rem">🦶 PODOLOGÍA</td></tr>
-      ${fila('A domicilio', p.podologiaDomicilio||'No')}`;
-  }
-  const edad = p.nacimiento ? ` (${calcularEdadDesde(p.nacimiento)} años)` : '';
-  document.getElementById('ver-titulo').textContent = `${p.nombre} ${p.apellidos} · Exp. ${p.expediente}`;
-  document.getElementById('ver-contenido').innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:.9rem;border:1px solid var(--gris-borde);border-radius:8px;overflow:hidden">
-      <tr><td colspan="2" style="padding:8px;background:var(--verde);color:#fff;font-weight:700;font-size:.8rem">📋 DATOS PERSONALES</td></tr>
-      ${fila('Nombre completo',esc(p.nombre)+' '+esc(p.apellidos))}
-      ${fila('DNI',esc(p.dni))}${fila('Teléfono',esc(p.telefono))}
-      ${fila('Fecha de nacimiento',formatFecha(p.nacimiento)+edad)}
-      ${fila('Dirección',esc(p.direccion))}${fila('Alias / Referencia',esc(p.alias)||'—')}
-      <tr><td colspan="2" style="padding:8px;background:var(--verde);color:#fff;font-weight:700;font-size:.8rem">📁 DATOS EXPEDIENTE</td></tr>
-      ${fila('Nº Expediente',esc(p.expediente))}${fila('Estado',esc(p.estado))}
-      ${fila('Grado dependencia',esc(p.dependencia))}${fila('Fecha de alta',formatFecha(p.fechaAlta))}
-      <tr><td style="font-weight:700;color:var(--gris-medio);font-size:.8rem;padding:6px 8px;background:var(--gris-fondo)">Servicios</td>
-          <td style="padding:6px 8px">${badges||'—'}</td></tr>
-      ${comidaHtml}${terapiaHtml}${podologiaHtml}
-      <tr><td colspan="2" style="padding:8px;background:var(--verde);color:#fff;font-weight:700;font-size:.8rem">📝 OBSERVACIONES</td></tr>
-      <tr><td colspan="2" style="padding:8px">${esc(p.observaciones)||'—'}</td></tr>
-    </table>`;
-  document.getElementById('btn-editar-desde-ver').onclick = () => { cerrarModal('modal-ver'); abrirModalParticipante(id); };
-  document.getElementById('btn-imprimir-ficha').onclick   = () => imprimirFicha(id);
-  abrirModal('modal-ver');
-}
-window.verParticipante = verParticipante;
-
-/* ─── ELIMINAR ─────────────────────────────────────────────── */
-function pedirEliminar(id) {
-  const p = participantes.find(x=>x.id===id);
-  if (!p) return;
-  document.getElementById('confirm-msg').textContent =
-    `¿Eliminar a "${p.nombre} ${p.apellidos}" (Exp. ${p.expediente})? Esta acción no se puede deshacer.`;
-  document.getElementById('btn-confirm-ok').textContent = 'Eliminar';
-  document.getElementById('btn-confirm-ok').className   = 'btn btn-rojo';
-  confirmCallback = async () => {
-    setSyncEstado('guardando');
-    try {
-      await remove(ref(db,'participantes/'+id));
-      toast('🗑 Participante eliminado.');
-    } catch(err) {
-      setSyncEstado('error');
-      toast('❌ Error al eliminar.', true);
+  async function saveParticipants(){
+    setSaveIndicator("Guardando…");
+    try{
+      var ok = await window.storage.set(STORAGE_KEY, JSON.stringify(state.participants), SHARED);
+      if(!ok){ showToast("No se pudo guardar. Inténtalo de nuevo."); return; }
+      setSaveIndicator("Guardado ✓");
+    }catch(e){
+      showToast("Error al guardar los datos.");
     }
-  };
-  document.getElementById('confirm-overlay').classList.add('abierto');
-}
-window.pedirEliminar = pedirEliminar;
-
-function cerrarConfirm() {
-  document.getElementById('confirm-overlay').classList.remove('abierto');
-  confirmCallback = null;
-}
-window.cerrarConfirm = cerrarConfirm;
-document.getElementById('btn-confirm-ok').onclick = async () => {
-  if (confirmCallback) await confirmCallback();
-  cerrarConfirm();
-};
-
-/* ─── SERVICIOS ────────────────────────────────────────────── */
-function renderizarTarjetasServicios() {
-  const grid = document.getElementById('servicios-grid');
-  grid.innerHTML = SERVICIOS_LISTA.map((s,i) => {
-    const count = participantes.filter(p => p.estado==='Activo' && (p.servicios||[]).includes(s.label)).length;
-    return `<div class="servicio-card" onclick="mostrarDetalleServicio('${s.id}')">
-      <div class="icono">${s.icono}</div><h3>${s.label}</h3>
-      <div class="count">${count}</div><p>participantes activos</p>
-    </div>`;
-  }).join('');
-}
-
-function mostrarDetalleServicio(sid) {
-  servicioActual = sid;
-  const serv = SERVICIOS_LISTA.find(s=>s.id===sid);
-  document.getElementById('servicio-titulo').innerHTML = `${serv.icono} ${serv.label}`;
-  const lista = participantes.filter(p => p.estado==='Activo' && (p.servicios||[]).includes(serv.label));
-  const esComida    = sid==='comida';
-  const esTerapia   = sid==='terapia';
-  const esPodologia = sid==='podologia';
-  const conDomicilio = esTerapia || esPodologia;
-  document.getElementById('thead-servicio').innerHTML = `<tr>
-    <th>Nº Exp.</th><th>Nombre</th><th>Apellidos</th><th>Teléfono</th><th>Dirección</th>
-    ${esComida    ? '<th>Alergias</th><th>Intolerancias</th><th>Triturada</th>' : ''}
-    ${conDomicilio? '<th>A domicilio</th>' : ''}
-  </tr>`;
-  const tbody = document.getElementById('tbody-servicio');
-  tbody.innerHTML = lista.length
-    ? lista.map(p=>`<tr>
-        <td><strong>${esc(p.expediente)}</strong></td>
-        <td>${esc(p.nombre)}</td><td>${esc(p.apellidos)}</td>
-        <td>${esc(p.telefono)}</td><td>${esc(p.direccion)}</td>
-        ${esComida    ? `<td>${esc(p.alergias||'—')}</td><td>${esc(p.intolerancias||'—')}</td><td>${esc(p.triturada||'No')}</td>` : ''}
-        ${esTerapia   ? `<td>${esc(p.terapiaDomicilio||'No')}</td>` : ''}
-        ${esPodologia ? `<td>${esc(p.podologiaDomicilio||'No')}</td>` : ''}
-      </tr>`).join('')
-    : `<tr><td colspan="${esComida?8:5}"><div class="vacio"><div class="icono-grande">${serv.icono}</div>Sin participantes activos.</div></td></tr>`;
-  document.getElementById('servicio-detalle').style.display = 'block';
-  document.querySelectorAll('.servicio-card').forEach((c,i) => {
-    c.classList.toggle('seleccionado', SERVICIOS_LISTA[i].id===sid);
-  });
-}
-window.mostrarDetalleServicio = mostrarDetalleServicio;
-
-/* ─── IMPRESIÓN ────────────────────────────────────────────── */
-function imprimirListadoGeneral() {
-  const fecha = new Date().toLocaleDateString('es-ES');
-  const filas = participantes.map(p=>`<tr>
-    <td>${esc(p.expediente)}</td><td>${esc(p.nombre)}</td><td>${esc(p.apellidos)}</td>
-    <td>${esc(p.dni)}</td><td>${esc(p.telefono)}</td><td>${esc(p.direccion)}</td>
-    <td>${esc(p.dependencia)}</td><td>${(p.servicios||[]).join(', ')||'—'}</td><td>${esc(p.estado)}</td>
-  </tr>`).join('');
-  abrirVentanaImpresion(`
-    <h2>Servicios de Proximidad · Casillas de Coria</h2>
-    <p class="sub">Listado general · Generado: ${fecha} · Total: ${participantes.length}</p>
-    <table>
-      <thead><tr><th>Exp.</th><th>Nombre</th><th>Apellidos</th><th>DNI</th><th>Teléfono</th><th>Dirección</th><th>Dependencia</th><th>Servicios</th><th>Estado</th></tr></thead>
-      <tbody>${filas}</tbody>
-    </table>`, 'landscape');
-}
-window.imprimirListadoGeneral = imprimirListadoGeneral;
-
-function imprimirServicio() {
-  if (!servicioActual) return;
-  const serv = SERVICIOS_LISTA.find(s=>s.id===servicioActual);
-  const lista = participantes.filter(p=>p.estado==='Activo'&&(p.servicios||[]).includes(serv.label));
-  const esComida = servicioActual==='comida';
-  const fecha = new Date().toLocaleDateString('es-ES');
-  const filas = lista.map(p=>`<tr>
-    <td>${esc(p.expediente)}</td><td>${esc(p.nombre)}</td><td>${esc(p.apellidos)}</td>
-    <td>${esc(p.telefono)}</td><td>${esc(p.direccion)}</td>
-    ${esComida?`<td>${esc(p.alergias||'—')}</td><td>${esc(p.intolerancias||'—')}</td><td>${esc(p.triturada||'No')}</td>`:''}
-  </tr>`).join('');
-  abrirVentanaImpresion(`
-    <h2>Servicios de Proximidad · Casillas de Coria</h2>
-    <p class="sub">${serv.icono} ${serv.label} · Generado: ${fecha} · Total: ${lista.length}</p>
-    <table>
-      <thead><tr><th>Exp.</th><th>Nombre</th><th>Apellidos</th><th>Teléfono</th><th>Dirección</th>
-      ${esComida?'<th>Alergias</th><th>Intolerancias</th><th>Triturada</th>':''}</tr></thead>
-      <tbody>${filas}</tbody>
-    </table>`, 'portrait');
-}
-window.imprimirServicio = imprimirServicio;
-
-function abrirVentanaImpresion(contenido, orientacion) {
-  const w = window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-  <style>
-    body{font-family:'Segoe UI',Arial,sans-serif;font-size:10pt;margin:0;color:#1e2022}
-    h2{color:#2d6a4f;text-align:center;margin-bottom:4px;font-size:13pt}
-    p.sub{text-align:center;color:#666;font-size:9pt;margin-bottom:14px}
-    table{width:100%;border-collapse:collapse}
-    th{background:#2d6a4f;color:white;padding:7px 8px;text-align:left;font-size:9pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    td{padding:6px 8px;border-bottom:1px solid #ddd;font-size:9pt;vertical-align:top}
-    tr:nth-child(even) td{background:#f0faf3;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    @page{size:A4 ${orientacion};margin:1.5cm}
-  </style></head><body>${contenido}
-  <script>window.onload=()=>{window.print();}<\/script></body></html>`);
-  w.document.close();
-}
-
-function imprimirFicha(id) {
-  const p = participantes.find(x=>x.id===id);
-  if (!p) return;
-  const fecha = new Date().toLocaleDateString('es-ES');
-  const edad  = p.nacimiento ? calcularEdadDesde(p.nacimiento) : '—';
-  const fH    = (l,v) => `<tr><td class="lbl">${l}</td><td>${v||'—'}</td></tr>`;
-  let comidaB = '';
-  if ((p.servicios||[]).includes('Comida a domicilio')) {
-    comidaB=`<tr><td colspan="2" class="sec">🍽 Datos de Comida a Domicilio</td></tr>
-      ${fH('Alergias',p.alergias)}${fH('Intolerancias',p.intolerancias)}${fH('Comida triturada',p.triturada)}`;
   }
-  const w = window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-  <title>Ficha – ${p.nombre} ${p.apellidos}</title>
-  <style>
-    body{font-family:'Segoe UI',Arial,sans-serif;font-size:11pt;margin:0;color:#1e2022}
-    .cab{text-align:center;margin-bottom:20px;border-bottom:3px solid #2d6a4f;padding-bottom:12px}
-    .cab h1{color:#2d6a4f;font-size:14pt;margin-bottom:2px}.cab p{color:#666;font-size:9pt}
-    .nombre{font-size:16pt;font-weight:700;margin:8px 0 2px}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    td{padding:7px 10px;border:1px solid #ddd;font-size:10.5pt;vertical-align:top}
-    td.lbl{font-weight:700;color:#4a4e69;background:#f5f7f4;width:38%;white-space:nowrap}
-    td.sec{background:#2d6a4f;color:white;font-weight:700;font-size:9.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pie{margin-top:20px;font-size:8pt;color:#999;text-align:right}
-    @page{size:A4 portrait;margin:1.8cm}
-  </style></head><body>
-  <div class="cab">
-    <h1>Servicios de Proximidad · Casillas de Coria</h1>
-    <p>Ficha individual · Generada: ${fecha}</p>
-    <div class="nombre">${esc(p.nombre)} ${esc(p.apellidos)}</div>
-    <p>Expediente nº <strong>${esc(p.expediente)}</strong></p>
-  </div>
-  <table>
-    <tr><td class="sec" colspan="2">📋 Datos Personales</td></tr>
-    ${fH('Nombre completo',esc(p.nombre)+' '+esc(p.apellidos))}
-    ${fH('DNI',esc(p.dni))}${fH('Teléfono',esc(p.telefono))}
-    ${fH('Fecha de nacimiento',formatFecha(p.nacimiento)+' ('+edad+' años)')}
-    ${fH('Dirección',esc(p.direccion))}${fH('Alias / Referencia',esc(p.alias))}
-    <tr><td class="sec" colspan="2">📁 Datos del Expediente</td></tr>
-    ${fH('Nº Expediente',esc(p.expediente))}
-    <tr><td class="lbl">Estado</td><td style="font-weight:700;color:${p.estado==='Activo'?'#2d6a4f':'#c0392b'}">${esc(p.estado)}</td></tr>
-    ${fH('Grado de dependencia',esc(p.dependencia))}
-    ${fH('Fecha de alta',formatFecha(p.fechaAlta))}
-    ${fH('Servicios asignados',(p.servicios||[]).join(', '))}
-    ${comidaB}
-    <tr><td class="sec" colspan="2">📝 Observaciones</td></tr>
-    <tr><td colspan="2" style="min-height:60px">${esc(p.observaciones)||'—'}</td></tr>
-  </table>
-  <div class="pie">Servicios de Proximidad Casillas de Coria · Generado el ${fecha}</div>
-  <script>window.onload=()=>{window.print();}<\/script></body></html>`);
-  w.document.close();
-}
-window.imprimirFicha = imprimirFicha;
 
-/* ─── EXCEL ────────────────────────────────────────────────── */
-function excelConTitulo(filas, cab, t1, t2, anchos) {
-  const hoja = XLSX.utils.aoa_to_sheet([[t1],[t2],[],cab,...filas]);
-  hoja['!merges'] = [{s:{r:0,c:0},e:{r:0,c:cab.length-1}},{s:{r:1,c:0},e:{r:1,c:cab.length-1}}];
-  hoja['!cols']   = anchos.map(w=>({wch:w}));
-  if (hoja['A1']) hoja['A1'].s = {font:{bold:true,sz:13}};
-  if (hoja['A2']) hoja['A2'].s = {font:{italic:true,sz:10}};
-  cab.forEach((_,i)=>{ const r=XLSX.utils.encode_cell({r:3,c:i}); if(hoja[r]) hoja[r].s={font:{bold:true}}; });
-  return hoja;
-}
-
-function exportarExcelGeneral() {
-  if (!participantes.length){toast('⚠ No hay participantes para exportar.',true);return;}
-  const fecha = new Date().toLocaleDateString('es-ES');
-  const cab   = ['Nº Expediente','Nombre','Apellidos','DNI','Teléfono','Fecha nacimiento','Edad',
-                 'Dirección','Grado dependencia','Estado','Alias','Servicios',
-                 'Alergias','Intolerancias','Triturada','Observaciones','Fecha alta'];
-  const filas = participantes.map(p=>[
-    p.expediente,p.nombre,p.apellidos,p.dni,p.telefono,
-    formatFecha(p.nacimiento), p.nacimiento?calcularEdadDesde(p.nacimiento)+' años':'',
-    p.direccion,p.dependencia,p.estado,p.alias||'',
-    (p.servicios||[]).join(', '),p.alergias||'',p.intolerancias||'',p.triturada||'',
-    p.observaciones||'',formatFecha(p.fechaAlta)
-  ]);
-  const libro = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro,
-    excelConTitulo(filas,cab,'Servicios de Proximidad · Casillas de Coria',
-      `Listado general · ${fecha} · Total: ${participantes.length}`,
-      [6,14,18,10,12,12,8,28,24,8,16,36,18,18,8,28,10]),
-    'Todos los participantes');
-  SERVICIOS_LISTA.forEach(s=>{
-    const lista=participantes.filter(p=>p.estado==='Activo'&&(p.servicios||[]).includes(s.label));
-    if (!lista.length) return;
-    const esC=s.id==='comida';
-    const c=['Nº Expediente','Nombre','Apellidos','Teléfono','Dirección'];
-    if (esC) c.push('Alergias','Intolerancias','Triturada');
-    const fs=lista.map(p=>{
-      const r=[p.expediente,p.nombre,p.apellidos,p.telefono,p.direccion];
-      if (esC) r.push(p.alergias||'',p.intolerancias||'',p.triturada||'No');
-      return r;
+  // ===================================================================
+  // RENDER: CHIPS DE SERVICIO Y BOTONES DE INFORME
+  // ===================================================================
+  function renderServiceChips(){
+    var wrap = $('serviceChips');
+    wrap.innerHTML = SERVICES.map(function(s){
+      return '<button type="button" class="chip" data-service="'+s.key+'">' +
+             '<span class="dot" style="background:'+s.color+'"></span>' + s.label + '</button>';
+    }).join('');
+    wrap.querySelectorAll('.chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.getAttribute('data-service');
+        if(state.serviceFilter.has(key)) state.serviceFilter.delete(key);
+        else state.serviceFilter.add(key);
+        btn.classList.toggle('active');
+        renderTable();
+      });
     });
-    XLSX.utils.book_append_sheet(libro,
-      excelConTitulo(fs,c,'Servicios de Proximidad · Casillas de Coria',
-        `${s.icono} ${s.label} · ${fecha} · Activos: ${lista.length}`,[6,14,18,12,28,18,18,10]),
-      s.label.substring(0,31));
-  });
-  XLSX.writeFile(libro,`casillas-coria-${new Date().toISOString().split('T')[0]}.xlsx`);
-  toast('✅ Excel descargado correctamente.');
-}
-window.exportarExcelGeneral = exportarExcelGeneral;
 
-function exportarExcelServicio() { if (servicioActual) exportarExcelServicioDirecto(servicioActual); }
-window.exportarExcelServicio = exportarExcelServicio;
+    var repWrap = $('reportButtons');
+    repWrap.innerHTML = SERVICES.map(function(s){
+      return '<button type="button" class="report-chip-btn" data-service="'+s.key+'">' +
+             '<span class="dot" style="background:'+s.color+'"></span>' + s.label + '</button>';
+    }).join('');
+    repWrap.querySelectorAll('.report-chip-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        printServiceList(btn.getAttribute('data-service'));
+      });
+    });
 
-function exportarExcelServicioDirecto(sid) {
-  const serv=SERVICIOS_LISTA.find(s=>s.id===sid);
-  const lista=participantes.filter(p=>p.estado==='Activo'&&(p.servicios||[]).includes(serv.label));
-  if (!lista.length){toast(`⚠ No hay participantes activos en "${serv.label}".`,true);return;}
-  const fecha=new Date().toLocaleDateString('es-ES');
-  const esC=sid==='comida';
-  const cab=['Nº Expediente','Nombre','Apellidos','Teléfono','Dirección'];
-  if (esC) cab.push('Alergias','Intolerancias','Triturada');
-  const filas=lista.map(p=>{
-    const r=[p.expediente,p.nombre,p.apellidos,p.telefono,p.direccion];
-    if (esC) r.push(p.alergias||'',p.intolerancias||'',p.triturada||'No');
-    return r;
-  });
-  const libro=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro,
-    excelConTitulo(filas,cab,'Servicios de Proximidad · Casillas de Coria',
-      `${serv.icono} ${serv.label} · ${fecha} · Activos: ${lista.length}`,[6,14,18,12,28,18,18,10]),
-    serv.label.substring(0,31));
-  XLSX.writeFile(libro,`${serv.label.toLowerCase().replace(/\s+/g,'-')}-${new Date().toISOString().split('T')[0]}.xlsx`);
-  toast(`✅ Excel de "${serv.label}" descargado.`);
-}
-window.exportarExcelServicioDirecto = exportarExcelServicioDirecto;
+    var grid = $('serviceCheckGrid');
+    grid.innerHTML = SERVICES.map(function(s){
+      return '<label class="service-check"><input type="checkbox" data-service="'+s.key+'">' +
+             '<span class="sdot" style="background:'+s.color+'"></span>' + s.label + '</label>';
+    }).join('');
+  }
 
-/* ─── EXPORTAR / IMPORTAR JSON ─────────────────────────────── */
-function exportarDatos() {
-  const blob=new Blob([JSON.stringify({version:'2.0',exportado:new Date().toISOString(),participantes},null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`casillas-coria-backup-${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  toast('✅ Copia de seguridad descargada.');
-}
-window.exportarDatos = exportarDatos;
+  // ===================================================================
+  // FILTRADO
+  // ===================================================================
+  function getFiltered(){
+    var q = state.search.trim().toLowerCase();
+    return state.participants.filter(function(p){
+      if(state.statusFilter !== 'todos' && p.estado !== state.statusFilter) return false;
+      if(state.serviceFilter.size > 0){
+        var any = false;
+        state.serviceFilter.forEach(function(k){ if(p.servicios && p.servicios[k]) any = true; });
+        if(!any) return false;
+      }
+      if(q){
+        var hay = (p.nombre+" "+p.apellidos+" "+(p.expediente||"")+" "+(p.dni||"")).toLowerCase();
+        if(hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
 
-function importarDatos(event) {
-  const file=event.target.files[0]; if (!file) return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try {
-      const datos=JSON.parse(e.target.result);
-      if (!Array.isArray(datos.participantes)) throw new Error();
-      document.getElementById('confirm-msg').textContent=
-        `¿Restaurar ${datos.participantes.length} participante(s) en Firebase? Los datos actuales serán reemplazados.`;
-      document.getElementById('btn-confirm-ok').textContent='Restaurar';
-      document.getElementById('btn-confirm-ok').className='btn btn-verde';
-      confirmCallback=async()=>{
-        setSyncEstado('guardando');
-        try {
-          await set(pRef, null);
-          for (const p of datos.participantes) {
-            await set(ref(db,'participantes/'+(p.id||push(pRef).key)), p);
+  // ===================================================================
+  // RENDER: TABLA
+  // ===================================================================
+  function renderTable(){
+    var list = getFiltered();
+    list.sort(function(a,b){ return (a.apellidos||"").localeCompare(b.apellidos||"", 'es'); });
+
+    $('resultCount').textContent = list.length + (list.length === 1 ? " participante" : " participantes");
+    var body = $('tableBody');
+
+    if(list.length === 0){
+      body.innerHTML = "";
+      $('emptyState').classList.remove('hidden');
+    }else{
+      $('emptyState').classList.add('hidden');
+      body.innerHTML = list.map(rowHtml).join('');
+    }
+
+    // checkboxes de fila
+    body.querySelectorAll('.row-check').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var id = cb.getAttribute('data-id');
+        if(cb.checked) state.selected.add(id); else state.selected.delete(id);
+        updateSelectionUI();
+      });
+    });
+    body.querySelectorAll('tr[data-rowid]').forEach(function(tr){
+      tr.addEventListener('click', function(e){
+        if(e.target.closest('.row-check') || e.target.closest('.row-actions')) return;
+        openDrawer(tr.getAttribute('data-rowid'));
+      });
+    });
+    body.querySelectorAll('.btn-edit').forEach(function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); openDrawer(b.getAttribute('data-id')); });
+    });
+
+    var checkAll = $('checkAllVisible');
+    var visibleIds = list.map(function(p){ return p.id; });
+    checkAll.checked = visibleIds.length > 0 && visibleIds.every(function(id){ return state.selected.has(id); });
+    updateSelectionUI();
+  }
+
+  function rowHtml(p){
+    var checked = state.selected.has(p.id) ? 'checked' : '';
+    var statusBadge = p.estado === 'Baja'
+      ? '<span class="badge badge-baja">Baja</span>'
+      : '<span class="badge badge-activo">Activo</span>';
+    var dots = SERVICES.filter(function(s){ return p.servicios && p.servicios[s.key]; })
+      .map(function(s){ return '<span class="sdot" style="background:'+s.color+'" title="'+s.label+'">'+s.short+'</span>'; })
+      .join('');
+    return '<tr data-rowid="'+p.id+'" class="'+(state.selected.has(p.id)?'selected':'')+'">' +
+      '<td class="col-check"><input type="checkbox" class="row-check" data-id="'+p.id+'" '+checked+'></td>' +
+      '<td><div class="p-name">'+escapeHtml(p.nombre)+' '+escapeHtml(p.apellidos)+'</div>' +
+        '<div class="p-sub">Exp. '+escapeHtml(p.expediente||'—')+(p.grado ? ' · '+escapeHtml(p.grado) : '')+'</div></td>' +
+      '<td><div>'+escapeHtml(p.telefono||'—')+'</div><div class="p-sub">'+escapeHtml(p.direccion||'')+'</div></td>' +
+      '<td>'+statusBadge+'</td>' +
+      '<td><div class="service-dots">'+(dots || '<span class="p-sub">—</span>')+'</div></td>' +
+      '<td><div class="row-actions"><button type="button" class="icon-btn btn-edit" data-id="'+p.id+'" title="Editar">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '</button></div></td>' +
+      '</tr>';
+  }
+
+  function updateSelectionUI(){
+    var n = state.selected.size;
+    $('btnPrintFichas').textContent = 'Imprimir fichas (' + n + ')';
+    $('btnPrintFichas').disabled = n === 0;
+    $('btnClearSelection').classList.toggle('hidden', n === 0);
+  }
+
+  // ===================================================================
+  // DRAWER (ALTA / EDICIÓN)
+  // ===================================================================
+  function openDrawer(id){
+    state.editingId = id || null;
+    var p = id ? state.participants.find(function(x){ return x.id === id; }) : null;
+
+    $('drawerTitle').textContent = p ? 'Editar participante' : 'Nuevo participante';
+    $('f-id').value = p ? p.id : '';
+    $('f-expediente').value = p ? (p.expediente||'') : '';
+    $('f-estado').value = p ? p.estado : 'Activo';
+    $('f-nombre').value = p ? p.nombre : '';
+    $('f-apellidos').value = p ? p.apellidos : '';
+    $('f-dni').value = p ? (p.dni||'') : '';
+    $('f-telefono').value = p ? (p.telefono||'') : '';
+    $('f-fecha').value = p ? (p.fecha||'') : '';
+    $('f-grado').value = p ? (p.grado||'') : '';
+    $('f-direccion').value = p ? (p.direccion||'') : '';
+    $('f-alergias').value = p ? (p.alergias||'') : '';
+    $('f-intolerancias').value = p ? (p.intolerancias||'') : '';
+    $('f-triturada').checked = p ? !!p.triturada : false;
+    $('f-observaciones').value = p ? (p.observaciones||'') : '';
+
+    document.querySelectorAll('#serviceCheckGrid input[type=checkbox]').forEach(function(cb){
+      var key = cb.getAttribute('data-service');
+      cb.checked = p && p.servicios ? !!p.servicios[key] : false;
+    });
+
+    $('btnDelete').classList.toggle('hidden', !p);
+    $('overlay').classList.remove('hidden');
+    $('formPanel').classList.remove('hidden');
+    $('formPanel').setAttribute('aria-hidden','false');
+    $('f-nombre').focus();
+  }
+
+  function closeDrawer(){
+    $('overlay').classList.add('hidden');
+    $('formPanel').classList.add('hidden');
+    $('formPanel').setAttribute('aria-hidden','true');
+    state.editingId = null;
+  }
+
+  function handleSubmit(e){
+    e.preventDefault();
+    var nombre = $('f-nombre').value.trim();
+    var apellidos = $('f-apellidos').value.trim();
+    if(!nombre || !apellidos){ showToast('Nombre y apellidos son obligatorios.'); return; }
+
+    var servicios = {};
+    document.querySelectorAll('#serviceCheckGrid input[type=checkbox]').forEach(function(cb){
+      servicios[cb.getAttribute('data-service')] = cb.checked;
+    });
+
+    var data = {
+      id: $('f-id').value || uid(),
+      expediente: $('f-expediente').value.trim(),
+      estado: $('f-estado').value,
+      nombre: nombre,
+      apellidos: apellidos,
+      dni: $('f-dni').value.trim(),
+      telefono: $('f-telefono').value.trim(),
+      fecha: $('f-fecha').value,
+      grado: $('f-grado').value,
+      direccion: $('f-direccion').value.trim(),
+      servicios: servicios,
+      alergias: $('f-alergias').value.trim(),
+      intolerancias: $('f-intolerancias').value.trim(),
+      triturada: $('f-triturada').checked,
+      observaciones: $('f-observaciones').value.trim()
+    };
+
+    var idx = state.participants.findIndex(function(x){ return x.id === data.id; });
+    if(idx >= 0) state.participants[idx] = data;
+    else state.participants.push(data);
+
+    closeDrawer();
+    renderTable();
+    saveParticipants();
+    showToast(idx >= 0 ? 'Participante actualizado.' : 'Participante añadido.');
+  }
+
+  function handleDelete(){
+    var id = $('f-id').value;
+    if(!id) return;
+    if(!confirm('¿Eliminar este participante? Esta acción no se puede deshacer.')) return;
+    state.participants = state.participants.filter(function(x){ return x.id !== id; });
+    state.selected.delete(id);
+    closeDrawer();
+    renderTable();
+    saveParticipants();
+    showToast('Participante eliminado.');
+  }
+
+  // ===================================================================
+  // IMPRESIÓN: LISTADOS DE TRABAJO POR SERVICIO / GENERAL
+  // ===================================================================
+  function setPageOrientation(orientation){
+    $('pageOrientationStyle').textContent = '@page{ size: A4 ' + orientation + '; margin: 12mm; }';
+  }
+
+  function printServiceList(serviceKey){
+    var service = SERVICES.find(function(s){ return s.key === serviceKey; });
+    var rows = state.participants.filter(function(p){ return p.servicios && p.servicios[serviceKey] && p.estado === 'Activo'; });
+    rows.sort(function(a,b){ return (a.apellidos||"").localeCompare(b.apellidos||"", 'es'); });
+
+    var extraCols = '';
+    var extraHead = '';
+    if(serviceKey === 'comida'){
+      extraHead = '<th>Alergias</th><th>Intolerancias</th><th>Triturada</th>';
+    }
+
+    var bodyRows = rows.map(function(p){
+      extraCols = serviceKey === 'comida'
+        ? '<td>'+escapeHtml(p.alergias||'—')+'</td><td>'+escapeHtml(p.intolerancias||'—')+'</td><td>'+(p.triturada?'Sí':'No')+'</td>'
+        : '';
+      return '<tr><td>'+escapeHtml(p.expediente||'—')+'</td><td>'+escapeHtml(p.nombre)+' '+escapeHtml(p.apellidos)+'</td>' +
+        '<td>'+escapeHtml(p.telefono||'—')+'</td><td>'+escapeHtml(p.direccion||'—')+'</td>' + extraCols +
+        '<td>'+escapeHtml(p.observaciones||'')+'</td></tr>';
+    }).join('');
+
+    var html =
+      '<div class="print-doc">' +
+        '<div class="report-header"><h2>' + service.label.toUpperCase() + ' — Listado de participantes</h2>' +
+        '<div class="report-meta">Fecha de impresión: ' + todayLong() + '<br>Total participantes: ' + rows.length + '</div></div>' +
+        '<table class="report-table"><thead><tr><th>Nº Expediente</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th>' + extraHead + '<th>Observaciones</th></tr></thead>' +
+        '<tbody>' + (bodyRows || '<tr><td colspan="8" style="text-align:center;color:#777;">Sin participantes activos en este servicio.</td></tr>') + '</tbody></table>' +
+      '</div>';
+
+    $('printArea').innerHTML = html;
+    setPageOrientation('portrait');
+    window.print();
+  }
+
+  function printGeneralList(){
+    var rows = getFiltered();
+    rows.sort(function(a,b){ return (a.apellidos||"").localeCompare(b.apellidos||"", 'es'); });
+
+    var bodyRows = rows.map(function(p){
+      var servs = SERVICES.filter(function(s){ return p.servicios && p.servicios[s.key]; }).map(function(s){ return s.short; }).join(', ');
+      return '<tr><td>'+escapeHtml(p.expediente||'—')+'</td><td>'+escapeHtml(p.nombre)+' '+escapeHtml(p.apellidos)+'</td>' +
+        '<td>'+escapeHtml(p.telefono||'—')+'</td><td>'+escapeHtml(p.direccion||'—')+'</td>' +
+        '<td>'+p.estado+'</td><td>'+(servs||'—')+'</td></tr>';
+    }).join('');
+
+    var html =
+      '<div class="print-doc">' +
+        '<div class="report-header"><h2>LISTADO GENERAL DE PARTICIPANTES</h2>' +
+        '<div class="report-meta">Fecha de impresión: ' + todayLong() + '<br>Total: ' + rows.length + '</div></div>' +
+        '<table class="report-table"><thead><tr><th>Nº Exp.</th><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Estado</th><th>Servicios</th></tr></thead>' +
+        '<tbody>' + (bodyRows || '<tr><td colspan="6" style="text-align:center;color:#777;">No hay participantes.</td></tr>') + '</tbody></table>' +
+      '</div>';
+
+    $('printArea').innerHTML = html;
+    setPageOrientation('landscape');
+    window.print();
+  }
+
+  // ===================================================================
+  // IMPRESIÓN: FICHAS INDIVIDUALES EN LOTE
+  // ===================================================================
+  function fichaHtml(p){
+    var statusStyle = p.estado === 'Baja' ? 'background:#F5E9E4;color:#9A4A2C;' : 'background:#EAF3EC;color:#2F5D50;';
+    var servHtml = SERVICES.map(function(s){
+      var on = p.servicios && p.servicios[s.key];
+      return '<span><span class="ficha-box" style="'+(on?('background:'+s.color+';color:#fff;border-color:'+s.color):'')+'">'+(on?'✓':'')+'</span>' + s.label + '</span>';
+    }).join('');
+
+    return '<div class="ficha">' +
+      '<div class="ficha-head"><div><h2>' + escapeHtml(p.nombre) + ' ' + escapeHtml(p.apellidos) + '</h2>' +
+        '<div class="ficha-exp">Nº Expediente: ' + escapeHtml(p.expediente||'—') + '</div></div>' +
+        '<span class="ficha-status" style="'+statusStyle+'">' + p.estado + '</span></div>' +
+
+      '<div class="ficha-grid">' +
+        '<div><span class="lbl">DNI</span>' + escapeHtml(p.dni||'—') + '</div>' +
+        '<div><span class="lbl">Teléfono</span>' + escapeHtml(p.telefono||'—') + '</div>' +
+        '<div><span class="lbl">Fecha de nacimiento</span>' + (formatDate(p.fecha)||'—') + '</div>' +
+        '<div><span class="lbl">Grado de dependencia</span>' + escapeHtml(p.grado||'Sin reconocer') + '</div>' +
+        '<div style="grid-column:1/-1;"><span class="lbl">Dirección</span>' + escapeHtml(p.direccion||'—') + '</div>' +
+      '</div>' +
+
+      '<div class="ficha-section-title">Servicios asignados</div>' +
+      '<div class="ficha-services">' + servHtml + '</div>' +
+
+      '<div class="ficha-section-title">Información alimentaria</div>' +
+      '<div class="ficha-grid">' +
+        '<div><span class="lbl">Alergias</span>' + escapeHtml(p.alergias||'Ninguna conocida') + '</div>' +
+        '<div><span class="lbl">Intolerancias</span>' + escapeHtml(p.intolerancias||'Ninguna conocida') + '</div>' +
+        '<div><span class="lbl">Comida triturada</span>' + (p.triturada ? 'Sí' : 'No') + '</div>' +
+      '</div>' +
+
+      '<div class="ficha-section-title">Observaciones</div>' +
+      '<div class="ficha-obs">' + (escapeHtml(p.observaciones) || '—') + '</div>' +
+
+      '<div class="ficha-foot">Ficha generada el ' + todayLong() + '</div>' +
+    '</div>';
+  }
+
+  function printSelectedFichas(){
+    var ids = Array.from(state.selected);
+    if(ids.length === 0) return;
+    var list = state.participants.filter(function(p){ return ids.indexOf(p.id) !== -1; });
+    list.sort(function(a,b){ return (a.apellidos||"").localeCompare(b.apellidos||"", 'es'); });
+
+    $('printArea').innerHTML = list.map(fichaHtml).join('');
+    setPageOrientation('portrait');
+    window.print();
+  }
+
+  // ===================================================================
+  // IMPORTAR / EXPORTAR EXCEL
+  // ===================================================================
+  function exportExcel(){
+    var headers = ['Nº Expediente','Nombre','Apellidos','DNI','Teléfono','Fecha de nacimiento','Dirección',
+      'Grado de dependencia','Estado','Ayuda a domicilio','Terapia ocupacional','Podología','Comida a domicilio',
+      'Pilates','Alergias alimentarias','Intolerancias alimentarias','Necesita comida triturada','Observaciones'];
+
+    var rows = state.participants.map(function(p){
+      return [
+        p.expediente||'', p.nombre||'', p.apellidos||'', p.dni||'', p.telefono||'', p.fecha||'', p.direccion||'',
+        p.grado||'', p.estado||'', (p.servicios&&p.servicios.ayuda)?'Sí':'No', (p.servicios&&p.servicios.terapia)?'Sí':'No',
+        (p.servicios&&p.servicios.podologia)?'Sí':'No', (p.servicios&&p.servicios.comida)?'Sí':'No',
+        (p.servicios&&p.servicios.pilates)?'Sí':'No', p.alergias||'', p.intolerancias||'', p.triturada?'Sí':'No', p.observaciones||''
+      ];
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Participantes');
+    XLSX.writeFile(wb, 'Participantes_Casillas_de_Coria.xlsx');
+    showToast('Excel exportado.');
+  }
+
+  function importExcel(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, { type: 'array' });
+        var sheet = wb.Sheets[wb.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        var added = 0, updated = 0;
+        rows.forEach(function(r){
+          var exp = String(r['Nº Expediente']||'').trim();
+          var nombre = String(r['Nombre']||'').trim();
+          var apellidos = String(r['Apellidos']||'').trim();
+          if(!nombre && !apellidos) return;
+
+          var yes = function(v){ return String(v||'').trim().toLowerCase() === 'sí' || String(v||'').trim().toLowerCase() === 'si'; };
+
+          var data2 = {
+            expediente: exp,
+            nombre: nombre,
+            apellidos: apellidos,
+            dni: String(r['DNI']||''),
+            telefono: String(r['Teléfono']||''),
+            fecha: String(r['Fecha de nacimiento']||''),
+            direccion: String(r['Dirección']||''),
+            grado: String(r['Grado de dependencia']||''),
+            estado: String(r['Estado']||'Activo').indexOf('Baja') !== -1 ? 'Baja' : 'Activo',
+            servicios: {
+              ayuda: yes(r['Ayuda a domicilio']),
+              terapia: yes(r['Terapia ocupacional']),
+              podologia: yes(r['Podología']),
+              comida: yes(r['Comida a domicilio']),
+              pilates: yes(r['Pilates'])
+            },
+            alergias: String(r['Alergias alimentarias']||''),
+            intolerancias: String(r['Intolerancias alimentarias']||''),
+            triturada: yes(r['Necesita comida triturada']),
+            observaciones: String(r['Observaciones']||'')
+          };
+
+          var existing = exp ? state.participants.find(function(p){ return p.expediente === exp; }) : null;
+          if(existing){
+            data2.id = existing.id;
+            var idx = state.participants.findIndex(function(p){ return p.id === existing.id; });
+            state.participants[idx] = data2;
+            updated++;
+          }else{
+            data2.id = uid();
+            state.participants.push(data2);
+            added++;
           }
-          toast(`✅ Restaurados ${datos.participantes.length} participantes.`);
-        } catch(err) {
-          setSyncEstado('error');
-          toast('❌ Error al restaurar.', true);
-        }
-      };
-      document.getElementById('confirm-overlay').classList.add('abierto');
-    } catch(err) { toast('⚠ Archivo no válido.',true); }
-    event.target.value='';
-  };
-  reader.readAsText(file);
-}
-window.importarDatos = importarDatos;
+        });
 
-/* ─── UTILIDADES ───────────────────────────────────────────── */
-function abrirModal(id)  { document.getElementById(id).classList.add('abierto'); }
-function cerrarModal(id) { document.getElementById(id).classList.remove('abierto'); }
-window.cerrarModal = cerrarModal;
+        renderTable();
+        saveParticipants();
+        showToast('Importado: ' + added + ' nuevos, ' + updated + ' actualizados.');
+      }catch(err){
+        showToast('No se pudo leer el archivo. Comprueba el formato.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
 
-function esc(str) {
-  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function formatFecha(iso) {
-  if (!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`;
-}
+  function exportJson(){
+    var payload = {
+      app: "Servicios de Proximidad - Casillas de Coria",
+      exportedAt: new Date().toISOString(),
+      participants: state.participants
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Participantes_Casillas_de_Coria.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('JSON exportado.');
+  }
 
-let toastTimerInner;
-function toast(msg, esError) {
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className='visible'+(esError?' error':'');
-  clearTimeout(toastTimerInner);
-  toastTimerInner=setTimeout(()=>el.className='',3200);
-}
+  function importJson(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var parsed = JSON.parse(e.target.result);
+        var list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.participants) ? parsed.participants : null);
+        if(!list) throw new Error('Formato no reconocido');
 
-document.addEventListener('keydown',e=>{
-  if (e.key==='Escape'){cerrarModal('modal-participante');cerrarModal('modal-ver');cerrarConfirm();}
-});
-document.querySelectorAll('.modal-overlay').forEach(o=>{
-  o.addEventListener('click',e=>{ if(e.target===o) cerrarModal(o.id); });
-});
+        var added = 0, updated = 0;
+        list.forEach(function(p){
+          if(!p || (!p.nombre && !p.apellidos)) return;
 
+          var data2 = {
+            expediente: p.expediente || '',
+            nombre: p.nombre || '',
+            apellidos: p.apellidos || '',
+            dni: p.dni || '',
+            telefono: p.telefono || '',
+            fecha: p.fecha || '',
+            grado: p.grado || '',
+            direccion: p.direccion || '',
+            servicios: {
+              ayuda: !!(p.servicios && p.servicios.ayuda),
+              terapia: !!(p.servicios && p.servicios.terapia),
+              podologia: !!(p.servicios && p.servicios.podologia),
+              comida: !!(p.servicios && p.servicios.comida),
+              pilates: !!(p.servicios && p.servicios.pilates)
+            },
+            alergias: p.alergias || '',
+            intolerancias: p.intolerancias || '',
+            triturada: !!p.triturada,
+            observaciones: p.observaciones || '',
+            estado: p.estado === 'Baja' ? 'Baja' : 'Activo'
+          };
+
+          var existing = null;
+          if(p.id) existing = state.participants.find(function(x){ return x.id === p.id; });
+          if(!existing && data2.expediente) existing = state.participants.find(function(x){ return x.expediente === data2.expediente; });
+
+          if(existing){
+            data2.id = existing.id;
+            var idx = state.participants.findIndex(function(x){ return x.id === existing.id; });
+            state.participants[idx] = data2;
+            updated++;
+          }else{
+            data2.id = p.id || uid();
+            state.participants.push(data2);
+            added++;
+          }
+        });
+
+        renderTable();
+        saveParticipants();
+        showToast('Importado: ' + added + ' nuevos, ' + updated + ' actualizados.');
+      }catch(err){
+        showToast('El archivo JSON no tiene un formato válido.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ===================================================================
+  // EVENTOS GENERALES
+  // ===================================================================
+  function bindEvents(){
+    $('btnNew').addEventListener('click', function(){ openDrawer(null); });
+    $('btnCloseDrawer').addEventListener('click', closeDrawer);
+    $('btnCancel').addEventListener('click', closeDrawer);
+    $('overlay').addEventListener('click', closeDrawer);
+    $('participantForm').addEventListener('submit', handleSubmit);
+    $('btnDelete').addEventListener('click', handleDelete);
+
+    $('searchInput').addEventListener('input', function(e){
+      state.search = e.target.value;
+      renderTable();
+    });
+
+    $('statusToggle').querySelectorAll('.status-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.statusFilter = btn.getAttribute('data-status');
+        $('statusToggle').querySelectorAll('.status-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        renderTable();
+      });
+    });
+
+    $('checkAllVisible').addEventListener('change', function(e){
+      var list = getFiltered();
+      if(e.target.checked) list.forEach(function(p){ state.selected.add(p.id); });
+      else list.forEach(function(p){ state.selected.delete(p.id); });
+      renderTable();
+    });
+
+    $('btnSelectAllVisible').addEventListener('click', function(){
+      var list = getFiltered();
+      list.forEach(function(p){ state.selected.add(p.id); });
+      renderTable();
+    });
+
+    $('btnClearSelection').addEventListener('click', function(){
+      state.selected.clear();
+      renderTable();
+    });
+
+    $('btnPrintFichas').addEventListener('click', printSelectedFichas);
+    $('btnPrintAll').addEventListener('click', printGeneralList);
+
+    $('btnExport').addEventListener('click', exportExcel);
+    $('btnImport').addEventListener('click', function(){ $('fileInput').click(); });
+    $('fileInput').addEventListener('change', function(e){
+      if(e.target.files && e.target.files[0]) importExcel(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    $('btnExportJson').addEventListener('click', exportJson);
+    $('btnImportJson').addEventListener('click', function(){ $('fileInputJson').click(); });
+    $('fileInputJson').addEventListener('change', function(e){
+      if(e.target.files && e.target.files[0]) importJson(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && !$('formPanel').classList.contains('hidden')) closeDrawer();
+    });
+  }
+
+  // ===================================================================
+  // INICIO
+  // ===================================================================
+  async function init(){
+    renderServiceChips();
+    bindEvents();
+    state.participants = await loadParticipants();
+    renderTable();
+  }
+
+  init();
+})();
 </script>
-</body>
-</html>
